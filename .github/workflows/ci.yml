@@ -58,6 +58,9 @@ jobs:
       - name: test (with TZ)
         run: cargo test --features chrono-tz
 
+      - name: test (with recurrence)
+        run: cargo test --features recurrence
+
   fmtclippy:
     runs-on: ubuntu-latest
     steps:
