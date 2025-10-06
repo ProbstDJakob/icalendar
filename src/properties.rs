@@ -3,6 +3,7 @@ use std::{
     fmt::{self, Write},
     mem,
     str::FromStr,
+    string::ToString,
 };
 
 use crate::value_types::ValueType;
@@ -181,19 +182,7 @@ impl Property {
 
     /// Writes this Property to `out`
     pub(crate) fn fmt_write<W: Write>(&self, out: &mut W) -> Result<(), fmt::Error> {
-        // A nice starting capacity for the majority of content lines
-        let mut line = String::with_capacity(150);
-
-        write!(line, "{}", self.key)?;
-        for Parameter { key, val } in self.params.values() {
-            write!(line, ";{}={}", key, Self::quote_if_contains_colon(val))?;
-        }
-        let value_type = self.value_type();
-        match value_type {
-            Some(ValueType::Text) => write!(line, ":{}", Self::escape_text(&self.val))?,
-            _ => write!(line, ":{}", self.val)?,
-        }
-        write_crlf!(out, "{}", fold_line(&line))?;
+        write_crlf!(out, "{}", fold_line(&self.to_string()))?;
         Ok(())
     }
 }
@@ -205,6 +194,21 @@ impl TryInto<String> for Property {
         let mut out_string = String::new();
         self.fmt_write(&mut out_string)?;
         Ok(out_string)
+    }
+}
+
+impl fmt::Display for Property {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.key)?;
+        for Parameter { key, val } in self.params.values() {
+            write!(f, ";{}={}", key, Self::quote_if_contains_colon(val))?;
+        }
+        let value_type = self.value_type();
+        match value_type {
+            Some(ValueType::Text) => write!(f, ":{}", Self::escape_text(&self.val))?,
+            _ => write!(f, ":{}", self.val)?,
+        }
+        Ok(())
     }
 }
 

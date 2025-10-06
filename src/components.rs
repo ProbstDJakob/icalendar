@@ -475,34 +475,34 @@ pub trait EventLike: Component {
     /// Get recurrence rules
     #[cfg(feature = "recurrence")]
     fn get_recurrence(&self) -> Option<RRuleSet> {
-        let dt_start_str = self.property_value("DTSTART")?;
-        let rrule_str = self.property_value("RRULE")?;
+        let dt_start = self.properties().get("DTSTART")?;
+        let rrule = self.properties().get("RRULE")?;
 
-        let mut rdates_str = self
-            .multi_properties()
-            .get("RDATE")
-            .unwrap_or(&vec![])
-            .iter()
-            .map(Property::value)
-            .collect::<Vec<_>>()
-            .join(",");
-        if !rdates_str.is_empty() {
-            rdates_str = format!("\nRDATE:{rdates_str}");
+        // TODO: Replace with `std::fmt::from_fn` as soon as https://github.com/rust-lang/rust/issues/117729 has been stabilized.
+        pub struct FromFn<F>(F);
+        impl<F> fmt::Display for FromFn<F>
+        where
+            F: Fn(&mut fmt::Formatter<'_>) -> fmt::Result,
+        {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                (self.0)(f)
+            }
         }
 
-        let mut exdates_str = self
-            .multi_properties()
-            .get("EXDATE")
-            .unwrap_or(&vec![])
-            .iter()
-            .map(Property::value)
-            .collect::<Vec<_>>()
-            .join(",");
-        if !exdates_str.is_empty() {
-            exdates_str = format!("\nEXDATE:{exdates_str}");
-        }
+        let rdates = FromFn(|f: &mut fmt::Formatter<'_>| {
+            for property in self.multi_properties().get("RDATE").into_iter().flatten() {
+                write!(f, "\r\n{property}")?;
+            }
+            Ok(())
+        });
+        let exdates = FromFn(|f: &mut fmt::Formatter<'_>| {
+            for property in self.multi_properties().get("EXDATE").into_iter().flatten() {
+                write!(f, "\r\n{property}")?;
+            }
+            Ok(())
+        });
 
-        let rrules = format!("DTSTART:{dt_start_str}\nRRULE:{rrule_str}{rdates_str}{exdates_str}");
+        let rrules = format!("{dt_start}\r\n{rrule}{rdates}{exdates}");
         rrules.parse::<RRuleSet>().ok()
     }
 
